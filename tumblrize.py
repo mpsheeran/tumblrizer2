@@ -5,7 +5,6 @@ import time
 import socket
 
 
-#WILL RETURN 'NONE' IF LOAD FAILS
 def importSettingsFromFile(filename='dev_config.json'):
     try:
         with open(filename, 'r') as configFile:
@@ -14,11 +13,11 @@ def importSettingsFromFile(filename='dev_config.json'):
             except:
                 print('\nWhoops, couldn\'t load json from file {}. Aborting.'.format(
                     configFile.name))
-                return None
+                raise
 
     except IOError:
         print('\nError accessing file {}. Whoops!'.format(filename))
-        return None
+        raise
 
     return configDict
 
@@ -35,12 +34,11 @@ def getClient(configDict):
         )
     except:
         print('\nError creating client. Whoops!')
-        return None
+        raise
 
     return client
 
 
-#pytumblr.TumblrRestClient tumblrClient
 def getAllPostIDs(tumblrClient, targetBlog=None, timeout=.1):
     if (targetBlog is not None):
         blogName = targetBlog
@@ -72,8 +70,13 @@ def getAllPostIDs(tumblrClient, targetBlog=None, timeout=.1):
                 print('\nUnexpected connection error gathering posts. Offset: {}, Last ID: {}'.format(
                     postOffset, len(postIdDict['postIDs'])))
 
-                timeout = timeout + .1
-                print('\nIncreasing timeout to {} secs.'.format(timeout))
+                if (timeout <= .5):
+                    print('\nIncreasing timeout to {} secs.'.format(timeout + .1))
+                    timeout = timeout + .1
+
+                else:
+                    print('\nMaximum timeout exceeded. Something\'s really wrong. Exiting.')
+                    raise
 
             except KeyboardInterrupt:
                 print('\nKeyboard interrupt detected. Returning current results.')
@@ -103,12 +106,12 @@ def writePostIDsToFile(postIdDict, filename):
                 json.dump(postIdDict, idFile)
 
             except:
-                print('\nError writing file {} - exiting.'.format(filename))
-                return False
+                print('\nError dumping JSON to file {} - exiting.'.format(filename))
+                raise
 
     except IOError:
         print('\nUnable to read file {} - are you sure it exists?'.format(filename))
-        return False
+        raise
 
     print('\nfile {} written - {} records'.format(idFile.name, len(postIdDict['postIDs'])))
     return True
@@ -119,13 +122,15 @@ def readPostIDsFromFile(filename):
         with open(filename, 'r') as idFile:
             postIdDict = json.load(idFile)
         print '\nfile {} loaded - {} records'.format(filename, len(postIdDict['postIDs']))
+
     except IOError:
         print('\nUnable to read file {} - are you sure it exists?'.format(filename))
-        return None
+        raise
 
     return postIdDict
 
 
+#this doesn't have any validation on desiredState
 def changePostStateByID(tumblrClient, postIdDict, desiredState):
     blogName = str(postIdDict['blog'])
     postIdCount = len(postIdDict['postIDs'])

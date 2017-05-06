@@ -43,11 +43,21 @@ def main():
         "-c", "--configFile",
         help="use an alternate config file. be careful."
     )
+
+    parser.add_argument(
+        "-e", "--excludeIDs",
+        help="define a comma-separated list of excluded IDs"
+    )
     ###############################
     ## END ARGUMENT DEFINITIONS ###
     ###############################
 
     arguments = parser.parse_args()
+
+    if (arguments.excludeIDs is not None):
+        excludedIDs = map(int, arguments.excludeIDs.split(','))
+    else:
+        excludedIDs = None
 
     if (arguments.configFile is not None):
         configs = tumblrize.importSettingsFromFile(arguments.configFile)
@@ -87,6 +97,11 @@ def main():
 
         else:
             postIdDict = tumblrize.readPostIDsFromFile(arguments.inputFile)
+
+            if (excludedIDs is not None):
+                print('Excluding {}'.format(excludedIDs))
+                postIdDict['postIDs'] = [item for item in postIdDict['postIDs'] if item not in excludedIDs]
+
             blogName = postIdDict['blog']
             idList = postIdDict['postIDs']
             for id in idList:
@@ -107,28 +122,9 @@ def main():
                 return False
 
             postIdDict = tumblrize.readPostIDsFromFile(arguments.inputFile)
-
-            if (postIdDict is None):
-                print('Unable to read post IDs. Exiting.')
-                return False
-
-            #check to make sure client blog matches target blog
-            if (tumblrClient.info()['user']['name'] != postIdDict['blog']):
-                print('This action can only be performed on the authed blog ({}). Exiting.'.format(
-                    configs['blog']))
-                return False
-
-            result = tumblrize.changePostStateByID(tumblrClient, postIdDict, desiredState)
-            return result
-
-    elif (arguments.action == 'makepostspublished'):
-        if (arguments.inputFile is None):
-            print('Error! You must define an input file to perform this action. Exiting.')
-            return False
-
-        else:
-            desiredState = 'published'
-            postIdDict = tumblrize.readPostIDsFromFile(arguments.inputFile)
+            if (excludedIDs is not None):
+                print('Excluding {}'.format(excludedIDs))
+                postIdDict['postIDs'] = [item for item in postIdDict['postIDs'] if item not in excludedIDs]
 
             if (postIdDict is None):
                 print('Unable to read post IDs. Exiting.')
