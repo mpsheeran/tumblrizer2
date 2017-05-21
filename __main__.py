@@ -48,11 +48,13 @@ def main():
         "-e", "--excludeIDs",
         help="define a comma-separated list of excluded IDs"
     )
-    ###############################
-    ## END ARGUMENT DEFINITIONS ###
-    ###############################
 
+    # Parse them args
     arguments = parser.parse_args()
+
+    ###############################
+    #### OPTIONAL ARG HANDLING ####
+    ###############################
 
     if (arguments.excludeIDs is not None):
         excludedIDs = map(int, arguments.excludeIDs.split(','))
