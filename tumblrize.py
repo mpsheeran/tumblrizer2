@@ -99,11 +99,66 @@ def getAllPostIDs(tumblrClient, targetBlog=None, timeout=.1):
     return postIdDict
 
 
-def writePostIDsToFile(postIdDict, filename):
-    try:
-        with open(filename, 'w+') as idFile:
+def getAllPosts(tumblrClient, targetBlog=None, timeout=.1):
+    if (targetBlog is not None):
+        blogName = targetBlog
+    else:
+        blogName = tumblrClient.info()['user']['name']
+
+    totalposts = tumblrClient.posts(blogName)['total_posts']
+    postDict = {'blog': blogName,
+                'posts': []}
+
+    postOffset = 0
+
+    print ('\n{} total posts on {}. Gathering.'.format(totalposts, blogName))
+
+    with progressbar.ProgressBar(max_value=totalposts) as progress:
+        while(totalposts - postOffset > 20):
+
             try:
-                json.dump(postIdDict, idFile)
+                postDict['posts'] = postDict['posts'] + tumblrClient.posts(blogName, offset=postOffset)['posts']
+
+                postOffset = postOffset + 20
+                progress.update(len(postDict['posts']))
+                time.sleep(timeout)
+
+            except socket.error:
+                print('\nUnexpected connection error gathering posts. Offset: {}, Last ID: {}'.format(
+                    postOffset, len(postDict['posts'])))
+
+                if (timeout <= .5):
+                    print('\nIncreasing timeout to {} secs.'.format(timeout + .1))
+                    timeout = timeout + .1
+
+                else:
+                    print('\nMaximum timeout exceeded. Something\'s really wrong. Exiting.')
+                    raise
+
+            except KeyboardInterrupt:
+                print('\nKeyboard interrupt detected. Returning current results.')
+                progress.max_value = len(postDict['posts'])
+                break
+
+            except:
+                print('\nUnexpected error gathering posts. Offset: {}, Last ID: {}'.format(
+                    postOffset, len(postDict['posts'])))
+                break
+    try:
+        postDict['posts'] = postDict['posts'] + tumblrClient.posts(blogName, offset=postOffset)['posts']
+
+    except:
+        print('\nUnexpected error gathering posts. Offset: {}, Last ID: {}'.format(
+            postOffset, len(postDict['posts'])))
+
+    return postDict
+
+
+def writeDictToJSON(dict, filename):
+    try:
+        with open(filename, 'w+') as outputFile:
+            try:
+                json.dump(dict, outputFile)
 
             except:
                 print('\nError dumping JSON to file {} - exiting.'.format(filename))
@@ -113,7 +168,7 @@ def writePostIDsToFile(postIdDict, filename):
         print('\nUnable to read file {} - are you sure it exists?'.format(filename))
         raise
 
-    print('\nfile {} written - {} records'.format(idFile.name, len(postIdDict['postIDs'])))
+    print('\nfile {} written'.format(outputFile.name))
     return True
 
 

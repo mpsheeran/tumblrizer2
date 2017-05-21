@@ -12,18 +12,11 @@ def main():
     #positional args
     parser.add_argument(
         "action",
-        help="the action you want to perform",
-        choices=["scrapepostids", "readpostids", "makepostsprivate", "makepostspublished"]
+        help="ACTION: the action you want to perform",
+        choices=["scrapepostids", "readpostids", "scrapeposts", "makepostsprivate", "makepostspublished"]
     )
 
     #optional args
-    parser.add_argument(
-        "-v", "--verbosity",
-        help="increase output verbosity",
-        action="count",
-        default=0
-    )
-
     parser.add_argument(
         "-b", "--blogName",
         help="set target blog"
@@ -76,20 +69,45 @@ def main():
         print ('Error creating client. Closing.')
         return False
 
+    tumblrClientInfo = tumblrClient.info()
+
+    #handle auth failures here
+    if ('errors' in tumblrClientInfo):
+        print("errors encountered while authenticating. Please confirm your API keys. Exiting.")
+        print("error detail:")
+        print(tumblrClientInfo['errors'])
+        return False
+
     if (arguments.action == 'scrapepostids'):
         if (arguments.blogName is not None):
             blogName = arguments.blogName
             postIdDict = tumblrize.getAllPostIDs(tumblrClient, blogName)
         else:
-            blogName = str(tumblrClient.info()['user']['name'])
+            blogName = str(tumblrClientInfo['user']['name'])
             postIdDict = tumblrize.getAllPostIDs(tumblrClient)
 
         if (arguments.outputFile is not None):
-            result = tumblrize.writePostIDsToFile(postIdDict, '{}.json'.format(arguments.outputFile))
+            result = tumblrize.writeDictToJSON(postIdDict, '{}.json'.format(arguments.outputFile))
+            return result
+        else:
+            writeFileName = '{}_post_ids.json'.format(blogName)
+            result = tumblrize.writeDictToJSON(postIdDict, writeFileName)
+            return result
+
+    elif (arguments.action == 'scrapeposts'):
+        if (arguments.blogName is not None):
+            blogName = arguments.blogName
+            postDict = tumblrize.getAllPosts(tumblrClient, blogName)
+        else:
+            blogName = str(tumblrClientInfo['user']['name'])
+            postDict = tumblrize.getAllPosts(tumblrClient)
+
+        if (arguments.outputFile is not None):
+            result = tumblrize.writeDictToJSON(postDict, '{}.json'.format(arguments.outputFile))
             return result
         else:
             writeFileName = '{}_posts.json'.format(blogName)
-            result = tumblrize.writePostIDsToFile(postIdDict, writeFileName)
+            result = tumblrize.writeDictToJSON(postDict, writeFileName)
             return result
 
     elif (arguments.action == 'readpostids'):
